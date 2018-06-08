@@ -45,7 +45,7 @@
     "kvplus-files": "0.0.4",
     "li": "^1.2.1",
     "node-fetch": "^1.7.1",
-    "rdflib": "^0.16.3",
+    "rdflib": "git+https://github.com/OpenLinkSoftware/rdflib.js.git#openlink",
     "solid-multi-rp-client": "git+https://github.com/OpenLinkSoftware/solid-multi-rp-client.git#openlink",
     "valid-url": "^1.0.9"
   },

@@ -24,7 +24,7 @@ function preferredProviderFor (uri) {
   return providerExists(uri)
     .then(providerUri => {
       if (providerUri) {
-        return providerUri  // the given uri's origin hosts an OIDC provider
+        return providerUri // the given uri's origin hosts an OIDC provider
       }
 
       // Given uri is not a provider (for example, a static Web ID profile URI)
@@ -61,20 +61,49 @@ function providerExists (uri) {
  *  given Web ID, extracted from Link rel header or profile body. If no
  *  provider URI was found, reject with an error.
  */
-function discoverProviderFor (webId) {
+function discoverProviderFor (webId, issuer) {
   return discoverFromHeaders(webId)
 
-    .then(providerFromHeaders => providerFromHeaders || discoverFromProfile(webId))
+    .then(providerFromHeaders => providerFromHeaders || discoverAllFromProfile(webId))
 
     .then(providerUri => {
-      // drop the path (provider origin only)
-      if (providerUri) {
-        providerUri = (new URL(providerUri)).origin
+      if (Array.isArray(providerUri)) {
+        let list = providerUri
+        let lastErr = null
+
+        for (let i = 0; i < list.length; i++) {
+          lastErr = null
+          providerUri = list[i];
+          if (providerUri) {
+            providerUri = (new URL(providerUri)).origin
+          }
+        
+          try {
+            validateProviderUri(providerUri, webId) // Throw an error if empty or invalid
+          } catch (err) {
+            lastErr = err
+          }
+
+          if (lastErr == null && issuer && providerUri == issuer) {
+            return providerUri
+          }
+        }
+        if (lastErr) {
+          throw lastErr 
+        } else {
+          validateProviderUri(null, webId) // Throw an error if empty or invalid
+        }
+
+      } else { 
+        // drop the path (provider origin only)
+        if (providerUri) {
+          providerUri = (new URL(providerUri)).origin
+        }
+
+        validateProviderUri(providerUri, webId) // Throw an error if empty or invalid
+
+        return providerUri
       }
-
-      validateProviderUri(providerUri, webId)  // Throw an error if empty or invalid
-
-      return providerUri
     })
 }
 
@@ -94,12 +123,12 @@ function discoverFromHeaders (webId) {
     })
 }
 
-function discoverFromProfile (webId) {
+function discoverAllFromProfile (webId) {
   const store = rdf.graph()
 
   const fetcher = rdf.fetcher(store)
 
-  return fetcher.fetch(webId, { force: true })
+  return fetcher.load(webId, { force: true })
     .then(response => {
       if (!response.ok) {
         let error = new Error(`Could not reach Web ID ${webId} to discover provider`)
@@ -108,9 +137,16 @@ function discoverFromProfile (webId) {
       }
 
       let providerTerm = rdf.namedNode('http://www.w3.org/ns/solid/terms#oidcIssuer')
-      let providerUri = store.anyValue(rdf.namedNode(webId), providerTerm)
+      let idp = store.each(rdf.namedNode(webId), providerTerm, undefined)
+      let list = [];
 
-      return providerUri
+      for(let i = 0; i < idp.length; i++) {
+        if (idp[i].uri) {
+          list.push(idp[i].uri)
+        }
+      }
+
+      return list
     })
 }
 

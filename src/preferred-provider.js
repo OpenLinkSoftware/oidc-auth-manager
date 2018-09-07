@@ -95,6 +95,7 @@ function discoverProviderFor (webId, issuer) {
         }
 
       } else { 
+
         // drop the path (provider origin only)
         if (providerUri) {
           providerUri = (new URL(providerUri)).origin
@@ -147,6 +148,11 @@ function discoverAllFromProfile (webId) {
       }
 
       return list
+    }, err => {
+      let error = new Error(`Could not reach Web ID ${webId} to discover provider`)
+      error.cause = err
+      error.statusCode = 400
+      throw error
     })
 }
 

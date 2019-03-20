@@ -26,8 +26,7 @@ class OidcManager {
    * @param [options.storePaths.userStore] {string}
    *
    * Config for OIDCProvider:
-   * @param [options.serverUri] {string} URI of this peer node, will be used
-   *   as both the Provider URI (`iss`) and the ResourceServer URI.
+   * @param [options.providerUri] {string} URI of the OpenID Connect Provider
    *
    * @param [options.host] {Object} Injected host behavior object
    * @param [options.host.authenticate] {Function}
@@ -43,14 +42,13 @@ class OidcManager {
    *
    * @param [options.debug] {Function} Debug function (defaults to console.log)
    *
-   * @param [options.delayBeforeRegisteringInitialClient] {number} Number of
+   * @param [config.delayBeforeRegisteringInitialClient] {number} Number of
    *   milliseconds to delay before initializing a local RP client.
    */
   constructor (options) {
     this.storePaths = options.storePaths
 
-    this.providerUri = options.serverUri
-    this.serverUri = options.serverUri
+    this.providerUri = options.providerUri
     this.host = options.host
 
     this.authCallbackUri = options.authCallbackUri
@@ -79,7 +77,7 @@ class OidcManager {
    *   auth-related collection stores (users, clients, tokens).
    *
    * Config for OIDCProvider:
-   * @param config.serverUri {string} URI of the OpenID Connect Provider
+   * @param config.providerUri {string} URI of the OpenID Connect Provider
    * @param [config.host] {Object} Injected host behavior object,
    *   see `providerFrom()` docstring.
    *
@@ -98,8 +96,7 @@ class OidcManager {
   static from (config) {
     let options = {
       debug: config.debug,
-      providerUri: config.serverUri || config.providerUri,
-      serverUri: config.serverUri || config.providerUri,
+      providerUri: config.providerUri,
       host: config.host,
       authCallbackUri: config.authCallbackUri,
       postLogoutUri: config.postLogoutUri,
@@ -134,8 +131,8 @@ class OidcManager {
   }
 
   validate () {
-    if (!this.serverUri) {
-      throw new Error('serverUri is required')
+    if (!this.providerUri) {
+      throw new Error('providerUri is required')
     }
     if (!this.authCallbackUri) {
       throw new Error('authCallbackUri is required')
@@ -217,7 +214,7 @@ class OidcManager {
    * @return {Promise<RelyingParty>}
    */
   initLocalRpClient () {
-    return this.clients.clientForIssuer(this.serverUri)
+    return this.clients.clientForIssuer(this.providerUri)
       .then(localClient => {
         this.debug('Local RP client initialized')
 
@@ -257,7 +254,7 @@ class OidcManager {
         handleErrors: false,
         optional: true,
         query: true,
-        realm: this.serverUri,
+        realm: this.providerUri,
         allow: {
           // Restrict token audience to either this serverUri or its subdomain
           audience: (aud) => this.filterAudience(aud)
@@ -320,7 +317,6 @@ class OidcManager {
       providerConfig = JSON.parse(storedConfig)
     } else {
       providerConfig.issuer = this.providerUri
-      providerConfig.serverUri = this.serverUri
     }
 
     return providerConfig
@@ -447,7 +443,7 @@ class OidcManager {
       aud = [ aud ]
     }
 
-    return aud.some(a => OidcManager.domainMatches(this.serverUri, a))
+    return aud.some(a => OidcManager.domainMatches(this.providerUri, a))
   }
 
   /**

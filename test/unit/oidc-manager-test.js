@@ -29,7 +29,6 @@ describe('OidcManager', () => {
       let postLogoutUri = providerUri + '/goodbye'
 
       let options = {
-        serverUri: providerUri,
         providerUri,
         dbPath,
         host,
@@ -41,7 +40,6 @@ describe('OidcManager', () => {
       let oidc = OidcManager.from(options)
 
       expect(oidc.providerUri).to.equal(providerUri)
-      expect(oidc.serverUri).to.equal(providerUri)
       expect(oidc.host).to.equal(host)
       expect(oidc.saltRounds).to.equal(saltRounds)
       expect(oidc.authCallbackUri).to.equal(authCallbackUri)
@@ -67,7 +65,6 @@ describe('OidcManager', () => {
       let dbPath = './db/oidc-mgr'
 
       let config = {
-        serverUri: providerUri,
         providerUri,
         authCallbackUri,
         postLogoutUri,
@@ -85,17 +82,17 @@ describe('OidcManager', () => {
 
   describe('initRs()', () => {
     it('should initialize a Resource Authenticator instance', () => {
-      let serverUri = 'https://localhost:8443'
-      let authCallbackUri = serverUri + '/api/oidc/rp'
-      let postLogoutUri = serverUri + '/goodbye'
+      let providerUri = 'https://localhost:8443'
+      let authCallbackUri = providerUri + '/api/oidc/rp'
+      let postLogoutUri = providerUri + '/goodbye'
 
-      let config = { serverUri, providerUri: serverUri, authCallbackUri, postLogoutUri }
+      let config = { providerUri, authCallbackUri, postLogoutUri }
 
       let oidc = OidcManager.from(config)
       oidc.initRs()
 
       expect(oidc.rs.defaults.query).to.be.true()
-      expect(oidc.rs.defaults.realm).to.equal(serverUri)
+      expect(oidc.rs.defaults.realm).to.equal(providerUri)
       expect(oidc.rs).to.respondTo('authenticate')
     })
   })

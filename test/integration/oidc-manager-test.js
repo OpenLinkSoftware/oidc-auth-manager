@@ -28,7 +28,6 @@ describe('OidcManager (integration tests)', () => {
         authCallbackUri: serverUri + '/api/oidc/rp',
         postLogoutUri: serverUri + '/goodbye',
         host: {},
-        serverUri,
         providerUri: serverUri,
         dbPath
       }
@@ -44,7 +43,6 @@ describe('OidcManager (integration tests)', () => {
         authCallbackUri: serverUri + '/api/oidc/rp',
         postLogoutUri: serverUri + '/goodbye',
         host: {},
-        serverUri,
         providerUri: serverUri,
         dbPath
       }

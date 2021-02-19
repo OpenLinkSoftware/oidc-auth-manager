@@ -94,7 +94,7 @@ class OidcManager {
    * @return {OidcManager}
    */
   static from (config) {
-    let options = {
+    const options = {
       debug: config.debug,
       providerUri: config.providerUri,
       host: config.host,
@@ -104,7 +104,7 @@ class OidcManager {
       delayBeforeRegisteringInitialClient: config.delayBeforeRegisteringInitialClient,
       storePaths: OidcManager.storePathsFrom(config.dbPath)
     }
-    let oidc = new OidcManager(options)
+    const oidc = new OidcManager(options)
 
     oidc.validate()
 
@@ -228,18 +228,18 @@ class OidcManager {
   }
 
   initMultiRpClient () {
-    let localRPConfig = {
-      'issuer': this.providerUri,
-      'redirect_uri': this.authCallbackUri,
-      'post_logout_redirect_uris': [ this.postLogoutUri ]
+    const localRPConfig = {
+      issuer: this.providerUri,
+      redirect_uri: this.authCallbackUri,
+      post_logout_redirect_uris: [this.postLogoutUri]
     }
 
-    let backend = new KVPFileStore({
+    const backend = new KVPFileStore({
       path: this.storePaths.multiRpStore,
       collections: ['clients']
     })
 
-    let clientOptions = {
+    const clientOptions = {
       backend,
       debug: this.debug,
       localConfig: localRPConfig
@@ -249,8 +249,9 @@ class OidcManager {
   }
 
   initRs () {
-    let rsConfig = { // oidc-rs
+    const rsConfig = { // oidc-rs
       defaults: {
+        tokenTypesSupported: ['legacyPop', 'dpop'],
         handleErrors: false,
         optional: true,
         query: true,
@@ -266,7 +267,7 @@ class OidcManager {
   }
 
   initUserStore () {
-    let userStoreConfig = {
+    const userStoreConfig = {
       saltRounds: this.saltRounds,
       path: this.storePaths.userStore
     }
@@ -274,13 +275,13 @@ class OidcManager {
   }
 
   initProvider () {
-    let providerConfig = this.loadProviderConfig()
-    let provider = new OIDCProvider(providerConfig)
+    const providerConfig = this.loadProviderConfig()
+    const provider = new OIDCProvider(providerConfig)
     if (providerConfig.keys) {
       provider.keys = providerConfig.keys
     }
 
-    let backend = new KVPFileStore({
+    const backend = new KVPFileStore({
       path: this.storePaths.providerStore,
       collections: ['codes', 'clients', 'tokens', 'refresh']
     })
@@ -296,7 +297,7 @@ class OidcManager {
   }
 
   providerConfigPath () {
-    let storePath = this.storePaths.providerStore
+    const storePath = this.storePaths.providerStore
 
     return path.join(storePath, 'provider.json')
   }
@@ -309,9 +310,9 @@ class OidcManager {
    */
   loadProviderConfig () {
     let providerConfig = {}
-    let configPath = this.providerConfigPath()
+    const configPath = this.providerConfigPath()
 
-    let storedConfig = this.loadConfigFrom(configPath)
+    const storedConfig = this.loadConfigFrom(configPath)
 
     if (storedConfig) {
       providerConfig = JSON.parse(storedConfig)
@@ -345,7 +346,7 @@ class OidcManager {
   }
 
   saveProviderConfig () {
-    let configPath = this.providerConfigPath()
+    const configPath = this.providerConfigPath()
     fs.writeFileSync(configPath, JSON.stringify(this.provider, null, 2))
   }
 
@@ -440,7 +441,7 @@ class OidcManager {
 
   filterAudience (aud) {
     if (!Array.isArray(aud)) {
-      aud = [ aud ]
+      aud = [aud]
     }
 
     return aud.some(a => OidcManager.domainMatches(this.providerUri, a))
@@ -461,7 +462,7 @@ class OidcManager {
 
     try {
       webId = new URL(webId)
-      let webIdOrigin = webId.origin // drop the path
+      const webIdOrigin = webId.origin // drop the path
 
       match = (issuer === webIdOrigin) || OidcManager.isSubdomain(webIdOrigin, issuer)
     } catch (err) {
@@ -489,9 +490,9 @@ class OidcManager {
     domain = domain.host
 
     // Chop off the first subdomain (alice.databox.me -> databox.me)
-    let fragments = subdomain.split('.')
+    const fragments = subdomain.split('.')
     fragments.shift()
-    let abridgedSubdomain = fragments.join('.')
+    const abridgedSubdomain = fragments.join('.')
 
     return abridgedSubdomain === domain
   }

@@ -13,17 +13,41 @@ const HttpMocks = require('node-mocks-http')
 
 const LoginConsentRequest = require('../../src/handlers/login-consent-request')
 
+function createOpAuthRequest (overwrite) {
+  return Object.assign({
+    req: {
+      body: {},
+      app: {
+        locals: {
+          ldp: {
+            serverUri: 'https://pod.example'
+          }
+        }
+      },
+      session: {
+        consentedOrigins: ['https://example.com']
+      }
+    },
+    res: HttpMocks.createResponse(),
+    subject: {},
+    params: {
+      redirect_uri: 'https://example.com'
+    },
+    host: {}
+  }, overwrite)
+}
+
 describe('LoginConsentRequest', () => {
   describe('constructor()', () => {
     it('should initialize a new instance', () => {
-      let params = { consent: true, scope: 'openid' }
-      let options = {
+      const params = { consent: true, scope: 'openid' }
+      const options = {
         opAuthRequest: {},
         params,
         response: {}
       }
 
-      let request = new LoginConsentRequest(options)
+      const request = new LoginConsentRequest(options)
 
       expect(request.opAuthRequest).to.equal(options.opAuthRequest)
       expect(request.params).to.equal(options.params)
@@ -33,34 +57,34 @@ describe('LoginConsentRequest', () => {
 
   describe('extractParams()', () => {
     it('should use req.query if present', () => {
-      let req = { query: { client_id: '1234' } }
-      let res = HttpMocks.createResponse()
-      let opAuthRequest = { req, res }
+      const req = { query: { client_id: '1234' } }
+      const res = HttpMocks.createResponse()
+      const opAuthRequest = { req, res }
 
-      let params = LoginConsentRequest.extractParams(opAuthRequest)
+      const params = LoginConsentRequest.extractParams(opAuthRequest)
 
-      expect(params['client_id']).to.equal(req.query['client_id'])
+      expect(params.client_id).to.equal(req.query.client_id)
     })
 
     it('should use req.body if req.query is not present', () => {
-      let req = { body: { client_id: '1234' } }
-      let res = HttpMocks.createResponse()
-      let opAuthRequest = { req, res }
+      const req = { body: { client_id: '1234' } }
+      const res = HttpMocks.createResponse()
+      const opAuthRequest = { req, res }
 
-      let params = LoginConsentRequest.extractParams(opAuthRequest)
+      const params = LoginConsentRequest.extractParams(opAuthRequest)
 
-      expect(params['client_id']).to.equal(req.body['client_id'])
+      expect(params.client_id).to.equal(req.body.client_id)
     })
   })
 
   describe('from()', () => {
     it('should return an initialized instance', () => {
-      let body = { consent: true, scope: 'openid' }
-      let req = { body }
-      let res = HttpMocks.createResponse()
-      let opAuthRequest = { req, res }
+      const body = { consent: true, scope: 'openid' }
+      const req = { body }
+      const res = HttpMocks.createResponse()
+      const opAuthRequest = { req, res }
 
-      let request = LoginConsentRequest.from(opAuthRequest)
+      const request = LoginConsentRequest.from(opAuthRequest)
 
       expect(request.opAuthRequest).to.equal(opAuthRequest)
       expect(request.params).to.equal(req.body)
@@ -70,8 +94,7 @@ describe('LoginConsentRequest', () => {
 
   describe('handle()', () => {
     it('should return the opAuthRequest object', () => {
-      let res = HttpMocks.createResponse()
-      let opAuthRequest = { req: { body: {} }, res, subject: {} }
+      const opAuthRequest = createOpAuthRequest()
 
       return LoginConsentRequest.handle(opAuthRequest)
         .then(returnedRequest => {
@@ -80,10 +103,9 @@ describe('LoginConsentRequest', () => {
     })
 
     it('should invoke obtainConsent()', () => {
-      let res = HttpMocks.createResponse()
-      let opAuthRequest = { req: { body: {} }, res, subject: {} }
+      const opAuthRequest = createOpAuthRequest()
 
-      let obtainConsent = sinon.spy(LoginConsentRequest, 'obtainConsent')
+      const obtainConsent = sinon.spy(LoginConsentRequest, 'obtainConsent')
 
       return LoginConsentRequest.handle(opAuthRequest)
         .then(() => {
@@ -93,9 +115,8 @@ describe('LoginConsentRequest', () => {
     })
 
     it('should pass through opAuthRequest if skipConsent is set', () => {
-      let res = HttpMocks.createResponse()
-      let opAuthRequest = { req: { body: {} }, res, subject: {} }
-      let skipConsent = true
+      const opAuthRequest = createOpAuthRequest()
+      const skipConsent = true
 
       return LoginConsentRequest.handle(opAuthRequest, skipConsent)
         .then(() => {
@@ -103,25 +124,15 @@ describe('LoginConsentRequest', () => {
           LoginConsentRequest.obtainConsent.resetHistory()
         })
     })
-
-    it('should not invoke obtainConsent() if subject is missing', () => {
-      let res = HttpMocks.createResponse()
-      let opAuthRequest = { req: { body: {} }, res }
-
-      return LoginConsentRequest.handle(opAuthRequest)
-        .then(() => {
-          expect(LoginConsentRequest.obtainConsent).to.not.have.been.called()
-        })
-    })
   })
 
   describe('clientId getter', () => {
     it('should return the client_id param', () => {
-      let res = HttpMocks.createResponse()
-      let body = { 'client_id': '1234' }
-      let opAuthRequest = { req: { body }, res }
+      const res = HttpMocks.createResponse()
+      const body = { client_id: '1234' }
+      const opAuthRequest = { req: { body }, res }
 
-      let request = LoginConsentRequest.from(opAuthRequest)
+      const request = LoginConsentRequest.from(opAuthRequest)
 
       expect(request.clientId).to.equal('1234')
     })
@@ -129,53 +140,47 @@ describe('LoginConsentRequest', () => {
 
   describe('isLocalRpClient()', () => {
     it('should be false if host has no local client initialized', () => {
-      let params = { 'client_id': '1234' }
-      let response = HttpMocks.createResponse()
-      let opAuthRequest = { host: {} }
+      const params = { client_id: '1234' }
+      const res = HttpMocks.createResponse()
+      const opAuthRequest = createOpAuthRequest({ res })
 
-      let request = new LoginConsentRequest({ params, response, opAuthRequest })
+      const request = new LoginConsentRequest({ params, res, opAuthRequest })
 
       expect(request.isLocalRpClient('1234')).to.be.false()
     })
 
     it('should be false if params has no client id', () => {
-      let params = {}
-      let response = HttpMocks.createResponse()
-      let opAuthRequest = {
-        host: {}
-      }
+      const params = {}
+      const res = HttpMocks.createResponse()
+      const opAuthRequest = createOpAuthRequest({ res })
 
-      let request = new LoginConsentRequest({ params, response, opAuthRequest })
+      const request = new LoginConsentRequest({ params, res, opAuthRequest })
 
       expect(request.isLocalRpClient(undefined)).to.be.false()
     })
 
-    it('should be false if host local client id does not match params', () => {
-      let params = { 'client_id': '1234' }
-      let response = HttpMocks.createResponse()
-      let opAuthRequest = {
-        host: {
-          localClientId: '5678'
-        }
-      }
+    it('should be false if host local app origin does not equal param server uri', () => {
+      const params = {}
+      const res = HttpMocks.createResponse()
+      const opAuthRequest = createOpAuthRequest({
+        res
+      })
 
-      let request = new LoginConsentRequest({ params, response, opAuthRequest })
+      const request = new LoginConsentRequest({ params, res, opAuthRequest })
 
-      expect(request.isLocalRpClient('1234')).to.be.false()
+      expect(request.isLocalRpClient('https://example.com')).to.be.false()
     })
 
-    it('should be true if host local client id equals param client_id', () => {
-      let params = { 'client_id': '1234' }
-      let response = HttpMocks.createResponse()
-      let opAuthRequest = {
-        host: {
-          localClientId: '1234'
-        }
-      }
+    it('should be true if host local app origin equals param server uri', () => {
+      const params = {}
+      const res = HttpMocks.createResponse()
+      const opAuthRequest = createOpAuthRequest({
+        res
+      })
 
-      let request = new LoginConsentRequest({ params, response, opAuthRequest })
+      const request = new LoginConsentRequest({ params, res, opAuthRequest })
 
-      expect(request.isLocalRpClient('1234')).to.be.true()
+      expect(request.isLocalRpClient('https://pod.example')).to.be.true()
     })
   })
 
@@ -188,11 +193,16 @@ describe('LoginConsentRequest', () => {
       beforeEach(() => {
         req = { body: { scope: 'openid', client_id: clientId } }
         res = HttpMocks.createResponse()
-        opAuthRequest = { req, res, host }
+        opAuthRequest = createOpAuthRequest({ res, host })
+        opAuthRequest = Object.assign(opAuthRequest, {
+          req: Object.assign(opAuthRequest.req, {
+            body: req.body
+          })
+        })
       })
 
       it('should mark successful consent automatically', () => {
-        let request = LoginConsentRequest.from(opAuthRequest)
+        const request = LoginConsentRequest.from(opAuthRequest)
 
         return LoginConsentRequest.obtainConsent(request)
           .then(opAuthRequest => {
@@ -202,9 +212,9 @@ describe('LoginConsentRequest', () => {
       })
 
       it('should not call checkSavedConsentFor()', () => {
-        let request = LoginConsentRequest.from(opAuthRequest)
+        const request = LoginConsentRequest.from(opAuthRequest)
 
-        let checkSavedConsentFor = sinon.spy(request, 'checkSavedConsentFor')
+        const checkSavedConsentFor = sinon.spy(request, 'checkSavedConsentFor')
 
         return LoginConsentRequest.obtainConsent(request)
           .then(() => {
@@ -221,11 +231,16 @@ describe('LoginConsentRequest', () => {
       beforeEach(() => {
         req = { body: { consent: true, scope: 'openid', client_id: clientId } }
         res = HttpMocks.createResponse()
-        opAuthRequest = { req, res, host }
+        opAuthRequest = createOpAuthRequest({ res, host })
+        opAuthRequest = Object.assign(opAuthRequest, {
+          req: Object.assign(opAuthRequest.req, {
+            body: req.body
+          })
+        })
       })
 
       it('should call saveConsentForClient()', () => {
-        let request = LoginConsentRequest.from(opAuthRequest)
+        const request = LoginConsentRequest.from(opAuthRequest)
 
         request.saveConsentForClient = sinon.mock().returns(Promise.resolve())
 
@@ -236,7 +251,7 @@ describe('LoginConsentRequest', () => {
       })
 
       it('should set consent property on request', () => {
-        let request = LoginConsentRequest.from(opAuthRequest)
+        const request = LoginConsentRequest.from(opAuthRequest)
 
         return LoginConsentRequest.obtainConsent(request)
           .then(opAuthRequest => {
@@ -245,7 +260,7 @@ describe('LoginConsentRequest', () => {
       })
 
       it('should set scope property on request', () => {
-        let request = LoginConsentRequest.from(opAuthRequest)
+        const request = LoginConsentRequest.from(opAuthRequest)
 
         return LoginConsentRequest.obtainConsent(request)
           .then(opAuthRequest => {
@@ -254,8 +269,8 @@ describe('LoginConsentRequest', () => {
       })
 
       it('should not render any pages', () => {
-        let render = sinon.stub(opAuthRequest.res, 'render')
-        let request = LoginConsentRequest.from(opAuthRequest)
+        const render = sinon.stub(opAuthRequest.res, 'render')
+        const request = LoginConsentRequest.from(opAuthRequest)
 
         return LoginConsentRequest.obtainConsent(request)
           .then(opAuthRequest => {
@@ -270,24 +285,20 @@ describe('LoginConsentRequest', () => {
       beforeEach(() => {
         req = { body: { scope: 'openid' } }
         res = HttpMocks.createResponse()
-        opAuthRequest = { req, res }
-      })
-
-      it('should check for previously saved consent', () => {
-        let request = LoginConsentRequest.from(opAuthRequest)
-
-        request.checkSavedConsentFor = sinon.mock()
-          .returns(Promise.resolve(false))
-
-        return LoginConsentRequest.obtainConsent(request)
-          .then(() => {
-            expect(request.checkSavedConsentFor).to.have.been.called()
+        opAuthRequest = createOpAuthRequest({ res })
+        opAuthRequest = Object.assign(opAuthRequest, {
+          req: Object.assign(opAuthRequest.req, {
+            session: {
+              consentedOrigins: []
+            },
+            body: req.body
           })
+        })
       })
 
       describe('if user consent has been previously saved', () => {
         it('should have marked the request as successful', () => {
-          let request = LoginConsentRequest.from(opAuthRequest)
+          const request = LoginConsentRequest.from(opAuthRequest)
 
           request.checkSavedConsentFor = sinon.mock()
             .returns(Promise.resolve(true))
@@ -305,29 +316,31 @@ describe('LoginConsentRequest', () => {
       })
 
       describe('if user consent has NOT been previously saved', () => {
-        it('should call renderConsentPage()', () => {
-          let request = LoginConsentRequest.from(opAuthRequest)
+        it('should call redirectToConsent()', () => {
+          const request = LoginConsentRequest.from(opAuthRequest)
 
           request.checkSavedConsentFor = sinon.mock()
             .returns(Promise.resolve(false))
           request.response.render = sinon.mock()
 
-          let renderConsentPage = sinon.spy(request, 'renderConsentPage')
+          const renderConsentPage = sinon.spy(request, 'redirectToConsent')
 
           return LoginConsentRequest.obtainConsent(request)
+            .catch(() => {})
             .then(() => {
               expect(renderConsentPage).to.have.been.called()
             })
         })
 
         it('should not have marked success', () => {
-          let request = LoginConsentRequest.from(opAuthRequest)
+          const request = LoginConsentRequest.from(opAuthRequest)
 
           request.checkSavedConsentFor = sinon.mock()
             .returns(Promise.resolve(false))
           request.response.render = sinon.mock()
 
           return LoginConsentRequest.obtainConsent(request)
+            .catch((opAuthRequest) => opAuthRequest)
             .then(opAuthRequest => {
               expect(opAuthRequest.consent).to.not.exist()
               expect(opAuthRequest.scope).to.not.exist()
@@ -337,37 +350,26 @@ describe('LoginConsentRequest', () => {
     })
   })
 
-  describe('renderConsentPage()', () => {
-    it('should call res.render', () => {
-      let req = { body: {} }
-      let res = HttpMocks.createResponse()
+  describe('redirectToConsent()', () => {
+    it('should call res.redirect', () => {
+      const res = HttpMocks.createResponse()
 
-      let render = sinon.stub(res, 'render')
+      const redirect = sinon.stub(res, 'redirect')
 
-      let opAuthRequest = { req, res }
-      let request = LoginConsentRequest.from(opAuthRequest)
-
-      return LoginConsentRequest.obtainConsent(request)
-        .then(() => {
-          expect(render).to.have.been.calledWith('auth/consent')
+      let opAuthRequest = createOpAuthRequest({ res })
+      opAuthRequest = Object.assign(opAuthRequest, {
+        req: Object.assign(opAuthRequest.req, {
+          session: {
+            consentedOrigins: []
+          }
         })
-    })
-
-    it('should set the headerSent property on opAuthRequest', () => {
-      let req = { body: {} }
-      let res = HttpMocks.createResponse()
-
-      sinon.stub(res, 'render')
-
-      let opAuthRequest = { req, res }
-      let request = LoginConsentRequest.from(opAuthRequest)
-
-      request.checkSavedConsentFor = sinon.mock()
-        .returns(Promise.resolve(false))
+      })
+      const request = LoginConsentRequest.from(opAuthRequest)
 
       return LoginConsentRequest.obtainConsent(request)
-        .then(opAuthRequest => {
-          expect(opAuthRequest.headersSent).to.be.true()
+        .catch(() => {})
+        .then(() => {
+          expect(redirect).to.have.been.called()
         })
     })
   })

@@ -25,7 +25,7 @@ describe('preferred-provider.js', () => {
       nock(serverUri)
         .options('/')
         .reply(204, 'No content', {
-          'Link': '<https://example.com>; rel="http://openid.net/specs/connect/1.0/issuer"'
+          Link: '<https://example.com>; rel="http://openid.net/specs/connect/1.0/issuer"'
         })
 
       return provider.discoverProviderFor(webId)
@@ -34,16 +34,16 @@ describe('preferred-provider.js', () => {
         })
     })
 
-    it('should drop the path from extracted provider uri', () => {
+    it('should not drop the path from extracted provider uri', () => {
       nock(serverUri)
         .options('/')
         .reply(204, 'No content', {
-          'Link': '<https://example.com/>; rel="http://openid.net/specs/connect/1.0/issuer"'
+          Link: '<https://example.com/>; rel="http://openid.net/specs/connect/1.0/issuer"'
         })
 
       return provider.discoverProviderFor(webId)
         .then(providerUri => {
-          expect(providerUri).to.equal('https://example.com')
+          expect(providerUri).to.equal('https://example.com/')
         })
     })
 
@@ -154,7 +154,7 @@ describe('preferred-provider.js', () => {
       nock('https://example.com')
         .options('/profile')
         .reply(204, 'No content', {
-          'Link': '<https://provider.com>; rel="http://openid.net/specs/connect/1.0/issuer"'
+          Link: '<https://provider.com>; rel="http://openid.net/specs/connect/1.0/issuer"'
         })
 
       const webId = 'https://example.com/profile#me'

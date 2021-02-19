@@ -1,4 +1,8 @@
 'use strict'
+/* eslint-disable node/no-deprecated-api */
+
+const AuthResponseSent = require('../errors/auth-response-sent')
+const url = require('url')
 
 class LoginConsentRequest {
   constructor (options) {
@@ -14,12 +18,12 @@ class LoginConsentRequest {
    * @return {Promise<OPAuthenticationRequest>}
    */
   static handle (opAuthRequest, skipConsent = false) {
-    let notLoggedIn = !opAuthRequest.subject
+    const notLoggedIn = !opAuthRequest.subject
     if (notLoggedIn) {
       return Promise.resolve(opAuthRequest) // pass through
     }
 
-    let consentRequest = LoginConsentRequest.from(opAuthRequest)
+    const consentRequest = LoginConsentRequest.from(opAuthRequest)
 
     if (skipConsent) {
       consentRequest.markConsentSuccess(opAuthRequest)
@@ -35,9 +39,9 @@ class LoginConsentRequest {
    * @return {LoginConsentRequest}
    */
   static from (opAuthRequest) {
-    let params = LoginConsentRequest.extractParams(opAuthRequest)
+    const params = LoginConsentRequest.extractParams(opAuthRequest)
 
-    let options = {
+    const options = {
       opAuthRequest,
       params,
       response: opAuthRequest.res
@@ -47,10 +51,10 @@ class LoginConsentRequest {
   }
 
   static extractParams (opAuthRequest) {
-    let req = opAuthRequest.req
-    let query = req.query || {}
-    let body = req.body || {}
-    let params = query['client_id'] ? query : body
+    const req = opAuthRequest.req
+    const query = req.query || {}
+    const body = req.body || {}
+    const params = query.client_id ? query : body
     return params
   }
 
@@ -60,17 +64,20 @@ class LoginConsentRequest {
    * @return {Promise<OPAuthenticationRequest>}
    */
   static obtainConsent (consentRequest) {
-    let { opAuthRequest, clientId } = consentRequest
+    const { opAuthRequest, clientId } = consentRequest
+
+    const parsedAppOrigin = url.parse(consentRequest.opAuthRequest.params.redirect_uri)
+    const appOrigin = `${parsedAppOrigin.protocol}//${parsedAppOrigin.host}`
 
     // Consent for the local RP client (the home pod) is implied
-    if (consentRequest.isLocalRpClient(clientId)) {
+    if (consentRequest.isLocalRpClient(appOrigin)) {
       return Promise.resolve()
         .then(() => { consentRequest.markConsentSuccess(opAuthRequest) })
         .then(() => opAuthRequest)
     }
 
     // Check if user has submitted this from a Consent page
-    if (consentRequest.params.consent) {
+    if (consentRequest.hasAlreadyConsented(appOrigin)) {
       return consentRequest.saveConsentForClient(clientId)
         .then(() => { consentRequest.markConsentSuccess(opAuthRequest) })
         .then(() => opAuthRequest)
@@ -82,7 +89,7 @@ class LoginConsentRequest {
         if (priorConsent) {
           consentRequest.markConsentSuccess(opAuthRequest)
         } else {
-          consentRequest.renderConsentPage()
+          consentRequest.redirectToConsent()
         }
       })
       .then(() => opAuthRequest)
@@ -92,13 +99,16 @@ class LoginConsentRequest {
    * @return {string}
    */
   get clientId () {
-    return this.params['client_id']
+    return this.params.client_id
   }
 
-  isLocalRpClient (clientId) {
-    let host = this.opAuthRequest.host || {}
+  isLocalRpClient (appOrigin) {
+    return this.opAuthRequest.req.app.locals.ldp.serverUri === appOrigin
+  }
 
-    return !!clientId && clientId === host.localClientId
+  hasAlreadyConsented (appOrigin) {
+    return this.opAuthRequest.req.session.consentedOrigins &&
+      this.opAuthRequest.req.session.consentedOrigins.includes(appOrigin)
   }
 
   checkSavedConsentFor (opAuthRequest) {
@@ -114,11 +124,21 @@ class LoginConsentRequest {
     return Promise.resolve(clientId)
   }
 
-  renderConsentPage () {
-    let { response, params, opAuthRequest } = this
+  redirectToConsent (authRequest) {
+    const { opAuthRequest } = this
+    let consentUrl = url.parse('/sharing')
+    consentUrl.query = opAuthRequest.req.query
 
-    response.render('auth/consent', params)
-    opAuthRequest.headersSent = true
+    consentUrl = url.format(consentUrl)
+    opAuthRequest.subject = null
+
+    opAuthRequest.res.redirect(consentUrl)
+
+    this.signalResponseSent()
+  }
+
+  signalResponseSent () {
+    throw new AuthResponseSent('User redirected')
   }
 }
 

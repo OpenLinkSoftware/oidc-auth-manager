@@ -1,4 +1,5 @@
 'use strict'
+/* eslint-disable node/no-deprecated-api */
 
 const url = require('url')
 
@@ -24,9 +25,9 @@ const AuthResponseSent = require('./errors/auth-response-sent')
  * @return {AuthenticationRequest}
  */
 function authenticate (authRequest) {
-  let debug = authRequest.host.debug || console.log.bind(console)
+  const debug = authRequest.host.debug || console.log.bind(console)
 
-  let webId = authenticatedUser(authRequest)
+  const webId = authenticatedUser(authRequest)
 
   if (webId) {
     debug('User is already authenticated as', webId)
@@ -82,17 +83,20 @@ function initSubjectClaim (authRequest, webId) {
 }
 
 function obtainConsent (authRequest) {
-  let debug = authRequest.host.debug || console.error.bind(console)
-  let skipConsent = true
+  const debug = authRequest.host.debug || console.error.bind(console)
+  const skipConsent = false
 
   return LoginConsentRequest.handle(authRequest, skipConsent)
     .catch(error => {
+      if (error instanceof AuthResponseSent) {
+        throw error
+      }
       debug('Error in auth Consent step: ', error)
     })
 }
 
 function logout (logoutRequest) {
-  let debug = console.error.bind(console)
+  const debug = console.error.bind(console)
 
   return LogoutRequest.handle(logoutRequest.req, logoutRequest.res)
     .then(() => logoutRequest)
